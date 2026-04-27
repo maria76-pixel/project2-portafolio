@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reconciliation & Error Detection System — Portfolio Case Study</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --surface3: #e8e4de;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1a1a18;
+  --muted: #7a7870;
+  --accent: #1a3a2a;
+  --accent-light: #2d6b4a;
+  --accent2: #c8401a;
+  --warn: #c87a00;
+  --green: #1d7a4a;
+  --red: #c8401a;
+  --yellow: #b87000;
+  --font: 'IBM Plex Sans', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; }
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  border-bottom: 1px solid var(--border2);
+  overflow: hidden;
+}
+.hero-left {
+  padding: 80px 60px;
+  border-right: 1px solid var(--border2);
+}
+.hero-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hero-tag::before { content: ''; display: block; width: 24px; height: 1px; background: var(--muted); }
+.hero h1 {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 300;
+  line-height: 1.2;
+  max-width: 500px;
+  margin-bottom: 28px;
+  letter-spacing: -0.02em;
+}
+.hero h1 strong { font-weight: 500; color: var(--accent-light); }
+.hero-sub {
+  font-size: 15px;
+  color: var(--muted);
+  max-width: 400px;
+  margin-bottom: 48px;
+  line-height: 1.75;
+}
+.hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 360px;
+}
+.stat {
+  background: var(--surface);
+  padding: 18px 20px;
+}
+.stat-v { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--accent-light); margin-bottom: 4px; }
+.stat-l { font-size: 11px; color: var(--muted); }
+.hero-right {
+  padding: 40px;
+  background: var(--surface2);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.hero-right-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+}
+.flow-num { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 20px; flex-shrink: 0; }
+.flow-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.fd-g{background:var(--green)} .fd-y{background:var(--yellow)} .fd-r{background:var(--red)} .fd-b{background:#1a4a8a}
+
+/* ── CASE STUDY ── */
+.case-study {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 80px 40px;
+  border-bottom: 1px solid var(--border2);
+}
+.cs-section { margin-bottom: 48px; }
+.cs-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cs-label::after { content: ''; flex: 1; height: 1px; background: var(--border2); }
+.cs-section h2 { font-size: 26px; font-weight: 400; margin-bottom: 16px; letter-spacing: -0.01em; }
+.cs-section p { color: var(--muted); font-size: 15px; line-height: 1.85; margin-bottom: 14px; }
+.cs-section ul { list-style: none; margin-bottom: 14px; }
+.cs-section ul li { font-size: 15px; color: var(--muted); padding: 5px 0 5px 20px; position: relative; line-height: 1.7; }
+.cs-section ul li::before { content: '—'; position: absolute; left: 0; color: var(--accent-light); font-size: 12px; }
+.outcome-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1px; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+.outcome-cell { background: var(--surface); padding: 20px; }
+.outcome-v { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--accent-light); margin-bottom: 4px; }
+.outcome-l { font-size: 12px; color: var(--muted); }
+.tools-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0; }
+.ttag { font-family: var(--mono); font-size: 11px; border: 1px solid var(--border2); padding: 3px 12px; border-radius: 3px; color: var(--muted); background: var(--surface); }
+.quote-block { border-left: 3px solid var(--accent-light); padding: 14px 20px; background: var(--surface); font-size: 14px; color: var(--muted); line-height: 1.8; font-style: italic; border-radius: 0 6px 6px 0; }
+
+/* ── APP FRAME ── */
+.dashboard-section { padding: 60px 20px; border-bottom: 1px solid var(--border2); background: var(--surface2); }
+.section-header { text-align: center; margin-bottom: 40px; }
+.section-header h2 { font-size: 22px; font-weight: 400; margin-bottom: 8px; }
+.section-header p { color: var(--muted); font-size: 13px; font-family: var(--mono); }
+.app-frame { max-width: 1060px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,0.08); }
+.app-bar { background: var(--accent); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+.app-bar .dots { display: flex; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dr{background:#f87171} .dy{background:#fbbf24} .dg{background:#34d399}
+.app-url { flex: 1; background: rgba(255,255,255,0.1); border-radius: 4px; padding: 4px 12px; font-family: var(--mono); font-size: 11px; color: rgba(255,255,255,0.6); }
+.app-nav { display: flex; background: var(--surface2); border-bottom: 1px solid var(--border2); overflow-x: auto; }
+.tab { font-size: 12px; font-family: var(--mono); padding: 10px 18px; border: none; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--accent-light); border-bottom-color: var(--accent-light); background: var(--surface); }
+.screen { display: none; padding: 20px; }
+.screen.on { display: block; }
+
+/* ── UI COMPONENTS ── */
+.sbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+.stitle { font-size: 15px; font-weight: 500; font-family: var(--mono); }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border: 1px solid var(--border2); border-radius: 3px; color: var(--muted); cursor: pointer; }
+.pill.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-run { font-family: var(--mono); font-size: 11px; padding: 6px 14px; background: var(--accent-light); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 8px; margin-bottom: 18px; }
+.kpi { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.kpi-l { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+.kpi-v { font-size: 18px; font-weight: 500; }
+.kpi-s { font-family: var(--mono); font-size: 10px; margin-top: 3px; }
+.kv-g{color:var(--green)} .kv-r{color:var(--red)} .kv-y{color:var(--yellow)}
+.card { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.card-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border2); }
+.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--surface2); }
+.bdg { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 3px; }
+.bg{background:#e8f5ee;color:var(--green)} .br{background:#fdf0ee;color:var(--red)} .by{background:#fdf5e0;color:var(--yellow)} .bb{background:#e8f0fa;color:#1a4a8a}
+.insight { background: #f0f5ff; border-left: 2px solid #3a6abf; padding: 10px 14px; font-size: 12px; color: #1a3a7a; line-height: 1.65; margin-top: 12px; border-radius: 0 4px 4px 0; font-style: italic; }
+
+/* 3-col matching layout */
+.match-layout { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0; border: 1px solid var(--border2); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+.match-panel { background: var(--surface2); }
+.match-panel-hdr { background: var(--surface); padding: 10px 12px; border-bottom: 1px solid var(--border2); font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.match-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; transition: background 0.1s; }
+.match-row:hover { background: var(--surface); }
+.match-row:last-child { border-bottom: none; }
+.mr-id { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.center-col { background: var(--surface); border-left: 1px solid var(--border2); border-right: 1px solid var(--border2); width: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; gap: 6px; }
+.center-col-lbl { font-family: var(--mono); font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); margin-bottom: 8px; }
+.conn-line { width: 50px; height: 1px; position: relative; }
+.conn-line::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; }
+.cl-g::before{background:var(--green)} .cl-y::before{background:var(--yellow)} .cl-r::before{background:rgba(200,64,26,0.3); border-top: 1px dashed var(--red);}
+.action-bar { display: flex; gap: 6px; padding: 10px 14px; background: var(--surface2); border-top: 1px solid var(--border2); flex-wrap: wrap; }
+.abtn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border: 1px solid var(--border2); border-radius: 3px; background: var(--surface); color: var(--text); cursor: pointer; }
+.abtn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.abtn-p { background: var(--accent-light); color: #fff; border-color: var(--accent-light); }
+
+/* suggestion rows */
+.sug-row { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+.sug-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.sug-msg { font-size: 13px; }
+.conf-bar { display: flex; align-items: center; gap: 8px; }
+.conf-track { width: 60px; height: 4px; background: var(--border2); border-radius: 2px; }
+.conf-fill { height: 4px; border-radius: 2px; background: var(--green); }
+.conf-num { font-family: var(--mono); font-size: 11px; color: var(--green); }
+.sug-detail { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.sug-acts { display: flex; gap: 6px; }
+
+/* timeline */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.tl-item { display: flex; gap: 14px; padding: 10px 0; position: relative; }
+.tl-item::before { content: ''; position: absolute; left: 9px; top: 28px; bottom: -10px; width: 1px; background: var(--border2); }
+.tl-item:last-child::before { display: none; }
+.tl-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid; flex-shrink: 0; margin-top: 2px; }
+.tld-g{border-color:var(--green);background:#e8f5ee} .tld-b{border-color:#3a6abf;background:#e8f0fa} .tld-y{border-color:var(--yellow);background:#fdf5e0} .tld-r{border-color:var(--red);background:#fdf0ee}
+.tl-label { font-size: 12px; font-weight: 500; }
+.tl-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* error table */
+.sev-high{color:var(--red)} .sev-med{color:var(--yellow)} .sev-low{color:#3a6abf}
+
+/* rule builder */
+.rule-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+.rule-label { font-size: 13px; }
+.rule-cond { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+.toggle { width: 36px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; flex-shrink: 0; }
+.toggle.on { background: var(--accent-light); }
+.toggle.off { background: var(--border2); }
+.toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: white; top: 3px; transition: left 0.15s; }
+.toggle.on::after { left: 19px; }
+.toggle.off::after { left: 3px; }
+
+/* summary bar */
+.sum-bar { display: flex; gap: 20px; font-family: var(--mono); font-size: 11px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border2); padding: 8px 14px; border-radius: var(--radius); margin-bottom: 14px; flex-wrap: wrap; }
+.sum-bar strong { color: var(--text); }
+
+/* footer */
+footer { padding: 48px 60px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; border-top: 1px solid var(--border2); }
+footer p { color: var(--muted); font-size: 13px; font-family: var(--mono); }
+.ftag { font-family: var(--mono); font-size: 10px; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 3px; }
+
+@media(max-width:700px){
+  .hero{grid-template-columns:1fr}
+  .hero-right{display:none}
+  .hero-left{padding:60px 24px}
+  .match-layout{grid-template-columns:1fr}
+  .center-col{display:none}
+  .case-study{padding:60px 24px}
+  footer{padding:40px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-tag">Portfolio Case Study · Project 02</div>
+    <h1>Reconciliation &amp; <strong>Error Detection</strong> System</h1>
+    <p class="hero-sub">A financial data accuracy engine for a multi-source business — automating transaction matching, surfacing mismatches, and eliminating manual reconciliation errors across platforms.</p>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-v">98.4%</div><div class="stat-l">Match accuracy rate</div></div>
+      <div class="stat"><div class="stat-v">$12K</div><div class="stat-l">Errors detected &amp; recovered</div></div>
+      <div class="stat"><div class="stat-v">6 hrs</div><div class="stat-l">Weekly time saved</div></div>
+      <div class="stat"><div class="stat-v">3 days</div><div class="stat-l">Implementation time</div></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="hero-right-label">System user flow</div>
+    <div class="flow-step"><span class="flow-num">01</span><div class="flow-dot fd-b"></div><span>Open Reconciliation Center — review accuracy status</span></div>
+    <div class="flow-step"><span class="flow-num">02</span><div class="flow-dot fd-g"></div><span>Run Auto-Match — system pairs platform vs bank data</span></div>
+    <div class="flow-step"><span class="flow-num">03</span><div class="flow-dot fd-y"></div><span>Review Suggested Matches — confirm or adjust</span></div>
+    <div class="flow-step"><span class="flow-num">04</span><div class="flow-dot fd-r"></div><span>Investigate Mismatches — timeline view + explanation</span></div>
+    <div class="flow-step"><span class="flow-num">05</span><div class="flow-dot fd-b"></div><span>Error Dashboard — track all issues &amp; bulk resolve</span></div>
+    <div class="flow-step"><span class="flow-num">06</span><div class="flow-dot fd-g"></div><span>Rules &amp; Settings — adapt system to business logic</span></div>
+  </div>
+</section>
+
+<!-- CASE STUDY -->
+<section class="case-study">
+  <div class="cs-section">
+    <div class="cs-label">The problem</div>
+    <h2>Financial data that couldn't be trusted</h2>
+    <p>The client — a small business operating across Shopify, Amazon, and a local POS system — was losing confidence in their own financial reports. Payouts from three different platforms, each with different fee structures, payout schedules, and refund timelines, were being reconciled manually against bank statements once a month. By then, errors were weeks old and hard to trace.</p>
+    <p>The core issue wasn't missing data — it was the inability to trust the data they had. A $200 discrepancy might be a fee, a refund, a timing difference, or a genuine error. Without a system to explain the difference, every mismatch required hours of manual investigation.</p>
+  </div>
+
+  <div class="cs-section">
+    <div class="cs-label">Why reconciliation is complex</div>
+    <h2>Three sources. Three schedules. One bank account.</h2>
+    <ul>
+      <li>Platform payouts group multiple orders into a single deposit — one bank line = many transactions</li>
+      <li>Refunds are often processed days after the original payout, creating timing mismatches</li>
+      <li>Platform fees (FBA, payment processing, storage) are deducted before payout — never shown as separate bank lines</li>
+      <li>Amazon's settlement period can delay deposits 3–5 business days after the payout report</li>
+      <li>Duplicate entries can appear when orders are partially refunded then re-fulfilled</li>
+    </ul>
+  </div>
+
+  <div class="cs-section">
+    <div class="cs-label">System logic</div>
+    <h2>The matching engine</h2>
+    <p>I designed a rule-based matching system that checks each platform payout against bank deposits using three criteria in order of priority: exact amount match, amount within ±5% tolerance (to account for fees), and date proximity within a 5-business-day window. When a one-to-one match fails, the system attempts one-to-many grouping — looking for combinations of platform transactions that sum to a single bank deposit.</p>
+    <p>Each match is assigned a confidence score based on how many criteria were satisfied. Matches above 90% are auto-accepted. Below that, they enter a review queue with a plain-language explanation of why the match is uncertain.</p>
+  </div>
+
+  <div class="cs-section">
+    <div class="cs-label">Tools used</div>
+    <div class="tools-row">
+      <span class="ttag">Excel</span><span class="ttag">Google Sheets</span><span class="ttag">QuickBooks</span>
+      <span class="ttag">Shopify Reports</span><span class="ttag">Amazon Seller Central</span><span class="ttag">Power Query</span>
+    </div>
+  </div>
+
+  <div class="cs-section">
+    <div class="cs-label">Outcome</div>
+    <div class="outcome-row">
+      <div class="outcome-cell"><div class="outcome-v">$12K</div><div class="outcome-l">Recovered in undetected errors over 4 months</div></div>
+      <div class="outcome-cell"><div class="outcome-v">98.4%</div><div class="outcome-l">Transaction match accuracy after system setup</div></div>
+      <div class="outcome-cell"><div class="outcome-v">6 hrs</div><div class="outcome-l">Weekly reconciliation time saved</div></div>
+      <div class="outcome-cell"><div class="outcome-v">100%</div><div class="outcome-l">Audit-ready reports — every entry explained</div></div>
+    </div>
+    <div class="quote-block">"We used to dread month-end. Now we have a reconciliation report every Friday with everything already matched and flagged. I finally trust our numbers."</div>
+  </div>
+</section>
+
+<!-- LIVE SYSTEM -->
+<section class="dashboard-section">
+  <div class="section-header">
+    <h2>Live system preview</h2>
+    <p>// explore all 6 screens of the reconciliation engine</p>
+  </div>
+  <div class="app-frame">
+    <div class="app-bar">
+      <div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div>
+      <div class="app-url">reconciliation-system · multi-source client · illustrative sample</div>
+    </div>
+    <div class="app-nav">
+      <button class="tab on" onclick="showTab('s1',this)">Overview</button>
+      <button class="tab" onclick="showTab('s2',this)">Matching workspace</button>
+      <button class="tab" onclick="showTab('s3',this)">Suggested matches</button>
+      <button class="tab" onclick="showTab('s4',this)">Investigation</button>
+      <button class="tab" onclick="showTab('s5',this)">Error dashboard</button>
+      <button class="tab" onclick="showTab('s6',this)">Rules &amp; settings</button>
+    </div>
+
+    <!-- S1: OVERVIEW -->
+    <div id="s1" class="screen on">
+      <div class="sbar">
+        <span class="stitle">Reconciliation center</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div class="pills"><span class="pill on">Apr 2026</span><span class="pill">Mar 2026</span><span class="pill">All sources</span></div>
+          <button class="btn-run">▶ Run Auto-Match</button>
+        </div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-l">Matched</div><div class="kpi-v kv-g">142</div><div class="kpi-s kv-g">$98,400</div></div>
+        <div class="kpi"><div class="kpi-l">Unmatched</div><div class="kpi-v kv-r">8</div><div class="kpi-s kv-r">$3,200</div></div>
+        <div class="kpi"><div class="kpi-l">Partial</div><div class="kpi-v kv-y">5</div><div class="kpi-s kv-y">$1,850</div></div>
+        <div class="kpi"><div class="kpi-l">Total difference</div><div class="kpi-v kv-r">-$400</div><div class="kpi-s kv-r">Needs review</div></div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Reconciliation status — Apr 2026</div>
+        <div style="position:relative;height:160px"><canvas id="rec-chart" role="img" aria-label="Bar chart showing matched, partial, unmatched transactions">Matched 142, Partial 5, Unmatched 8.</canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Issue list</div>
+        <div style="overflow-x:auto">
+        <table class="tbl" style="min-width:480px">
+          <thead><tr><th>Issue type</th><th>Count</th><th>Amount</th><th>Severity</th></tr></thead>
+          <tbody>
+            <tr><td>Missing bank deposit</td><td>3</td><td>$1,800</td><td><span class="sev-high">● High</span></td></tr>
+            <tr><td>Amount mismatch</td><td>4</td><td>$980</td><td><span class="sev-med">● Medium</span></td></tr>
+            <tr><td>Duplicate entry</td><td>1</td><td>$420</td><td><span class="sev-med">● Medium</span></td></tr>
+            <tr><td>Timing mismatch</td><td>5</td><td>$1,850</td><td><span class="sev-low">● Low</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="insight">Most errors originate from Amazon settlement delays (3–5 day lag). These are expected and will auto-resolve within the week. Prioritize the 3 missing deposits first.</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Recent activity</div>
+        <table class="tbl">
+          <tbody>
+            <tr><td style="color:var(--muted);font-family:var(--mono);font-size:10px">Apr 27 09:14</td><td>Auto-match completed — 142 transactions matched automatically</td><td><span class="bdg bg">Done</span></td></tr>
+            <tr><td style="color:var(--muted);font-family:var(--mono);font-size:10px">Apr 26 17:03</td><td>3 transactions manually resolved by manager</td><td><span class="bdg bg">Done</span></td></tr>
+            <tr><td style="color:var(--muted);font-family:var(--mono);font-size:10px">Apr 25 11:30</td><td>New rule applied: group Shopify payouts within 24hr window</td><td><span class="bdg bb">Config</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- S2: MATCHING WORKSPACE -->
+    <div id="s2" class="screen">
+      <div class="sbar">
+        <span class="stitle">Matching workspace</span>
+        <div class="pills"><span class="pill on">All</span><span class="pill">Unmatched</span><span class="pill">Manual mode</span></div>
+      </div>
+      <div class="sum-bar">
+        <span>Total: <strong>155 transactions</strong></span>
+        <span>Matched: <strong style="color:var(--green)">142</strong></span>
+        <span>Unmatched: <strong style="color:var(--red)">8</strong></span>
+        <span>Partial: <strong style="color:var(--yellow)">5</strong></span>
+      </div>
+      <div class="match-layout">
+        <div class="match-panel">
+          <div class="match-panel-hdr">Platform transactions (Shopify / Amazon)</div>
+          <div class="match-row"><span><div class="mr-id">#P-1041</div>Apr 2 · $2,300</span><span class="bdg bg">Matched</span></div>
+          <div class="match-row" style="background:#fdf0ee"><span><div class="mr-id">#P-1042</div>Apr 5 · $1,800</span><span class="bdg br">Unmatched</span></div>
+          <div class="match-row" style="background:#fdf5e0"><span><div class="mr-id">#P-1043</div>Apr 9 · $950</span><span class="bdg by">Partial</span></div>
+          <div class="match-row"><span><div class="mr-id">#P-1044</div>Apr 12 · $3,100</span><span class="bdg bg">Matched</span></div>
+          <div class="match-row"><span><div class="mr-id">#P-1045</div>Apr 15 · $1,640</span><span class="bdg bg">Matched</span></div>
+        </div>
+        <div class="center-col">
+          <div class="center-col-lbl">Matching engine</div>
+          <div class="conn-line cl-g"></div>
+          <div class="conn-line cl-r"></div>
+          <div class="conn-line cl-y"></div>
+          <div class="conn-line cl-g"></div>
+          <div class="conn-line cl-g"></div>
+        </div>
+        <div class="match-panel">
+          <div class="match-panel-hdr">Bank transactions</div>
+          <div class="match-row"><span><div class="mr-id">#B-881</div>Apr 3 · $2,300</span><span class="bdg bg">Matched</span></div>
+          <div class="match-row" style="background:#fdf0ee"><span><div class="mr-id">#B-882</div>Apr 6 · —</span><span class="bdg br">Missing</span></div>
+          <div class="match-row" style="background:#fdf5e0"><span><div class="mr-id">#B-883</div>Apr 10 · $730</span><span class="bdg by">Partial</span></div>
+          <div class="match-row"><span><div class="mr-id">#B-884</div>Apr 13 · $3,100</span><span class="bdg bg">Matched</span></div>
+          <div class="match-row"><span><div class="mr-id">#B-885</div>Apr 16 · $1,640</span><span class="bdg bg">Matched</span></div>
+        </div>
+      </div>
+      <div class="action-bar">
+        <button class="abtn abtn-p">Accept match</button>
+        <button class="abtn">Reject match</button>
+        <button class="abtn">Split transaction</button>
+        <button class="abtn">Merge transactions</button>
+      </div>
+    </div>
+
+    <!-- S3: SUGGESTED MATCHES -->
+    <div id="s3" class="screen">
+      <div class="sbar"><span class="stitle">Suggested matches engine</span><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">8 suggestions pending</span></div>
+      <div class="sug-row">
+        <div class="sug-top">
+          <div class="sug-msg">Bank deposit #B-882 ($1,800) likely matches 2 Amazon payouts</div>
+          <div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:88%"></div></div><span class="conf-num">88%</span></div>
+        </div>
+        <div class="sug-detail">Orders: $2,000 · Fees: -$120 · Refunds: -$80 → Net: $1,800. Date proximity: 1 day. Amount: exact.</div>
+        <div class="sug-acts">
+          <button class="abtn abtn-p" style="font-size:11px;padding:4px 10px">Accept</button>
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Edit</button>
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Reject</button>
+        </div>
+      </div>
+      <div class="sug-row">
+        <div class="sug-top">
+          <div class="sug-msg">Shopify payout #P-1043 ($950) may be partial match to Bank #B-883 ($730)</div>
+          <div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:64%;background:var(--yellow)"></div></div><span class="conf-num" style="color:var(--yellow)">64%</span></div>
+        </div>
+        <div class="sug-detail">Difference of $220 explained by refund processed after payout. Date gap: 1 day. Recommend manual review.</div>
+        <div class="sug-acts">
+          <button class="abtn abtn-p" style="font-size:11px;padding:4px 10px">Accept</button>
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Edit</button>
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Reject</button>
+        </div>
+      </div>
+      <div class="sug-row" style="opacity:0.6">
+        <div class="sug-top">
+          <div class="sug-msg">3 Shopify orders may combine into Bank deposit #B-890 ($4,200)</div>
+          <div class="conf-bar"><div class="conf-track"><div class="conf-fill" style="width:42%;background:var(--red)"></div></div><span class="conf-num" style="color:var(--red)">42%</span></div>
+        </div>
+        <div class="sug-detail">Low confidence — amount tolerance exceeds 5% threshold. Date gap: 4 days. Flag for manual review.</div>
+        <div class="sug-acts">
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Review manually</button>
+          <button class="abtn" style="font-size:11px;padding:4px 10px">Reject</button>
+        </div>
+      </div>
+      <div class="insight">High-confidence suggestions (≥85%) are auto-accepted unless overridden. Confidence below 65% always requires manual review — never auto-accepted.</div>
+    </div>
+
+    <!-- S4: INVESTIGATION -->
+    <div id="s4" class="screen">
+      <div class="sbar">
+        <span class="stitle">Mismatch investigation — #P-1042</span>
+        <span class="bdg br" style="font-size:11px;padding:4px 10px">Unmatched · High severity</span>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Comparison</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+          <div class="kpi"><div class="kpi-l">Expected</div><div class="kpi-v">$2,300</div></div>
+          <div class="kpi"><div class="kpi-l">Received</div><div class="kpi-v">$2,100</div></div>
+          <div class="kpi"><div class="kpi-l">Difference</div><div class="kpi-v kv-r">-$200</div></div>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Component</th><th>Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Orders (batch #4821–4856)</td><td>$2,500</td></tr>
+            <tr><td>Platform fees</td><td style="color:var(--red)">-$200</td></tr>
+            <tr><td>Refunds processed</td><td style="color:var(--red)">-$200</td></tr>
+          </tbody>
+        </table>
+        <div class="insight">Difference caused by a refund processed after the payout date and platform fees deducted before settlement. This is within expected behavior — no financial error detected. Safe to mark resolved.</div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Transaction timeline</div>
+        <div class="timeline">
+          <div class="tl-item"><div class="tl-dot tld-b"></div><div><div class="tl-label">Orders placed (batch #4821–4856)</div><div class="tl-sub">Apr 1 — $2,500 total order value</div></div></div>
+          <div class="tl-item"><div class="tl-dot tld-y"></div><div><div class="tl-label">Refund issued — order #4829</div><div class="tl-sub">Apr 3 — $200 refund processed by platform</div></div></div>
+          <div class="tl-item"><div class="tl-dot tld-g"></div><div><div class="tl-label">Platform payout generated</div><div class="tl-sub">Apr 5 — $2,100 net after fees &amp; refunds</div></div></div>
+          <div class="tl-item"><div class="tl-dot tld-r"></div><div><div class="tl-label">Bank deposit — not received yet</div><div class="tl-sub">Expected Apr 7–9 — Amazon settlement delay</div></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="abtn abtn-p">Mark resolved</button>
+        <button class="abtn">Match manually</button>
+        <button class="abtn">Add note</button>
+        <button class="abtn">Flag as issue</button>
+      </div>
+    </div>
+
+    <!-- S5: ERROR DASHBOARD -->
+    <div id="s5" class="screen">
+      <div class="sbar">
+        <span class="stitle">Error management dashboard</span>
+        <div class="pills"><span class="pill on">All</span><span class="pill">High</span><span class="pill">Medium</span></div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-l">Total errors</div><div class="kpi-v kv-r">13</div><div class="kpi-s">This period</div></div>
+        <div class="kpi"><div class="kpi-l">Total impact</div><div class="kpi-v kv-r">$4,050</div><div class="kpi-s">Across all issues</div></div>
+        <div class="kpi"><div class="kpi-l">Resolved</div><div class="kpi-v kv-g">7</div><div class="kpi-s kv-g">This week</div></div>
+        <div class="kpi"><div class="kpi-l">Pending</div><div class="kpi-v kv-y">6</div><div class="kpi-s">Needs action</div></div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">Error log</div>
+        <div style="overflow-x:auto">
+        <table class="tbl" style="min-width:520px">
+          <thead><tr><th>Error type</th><th>Count</th><th>Total impact</th><th>Source</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Missing bank deposit</td><td>3</td><td style="color:var(--red)">$1,800</td><td>Amazon</td><td><span class="bdg br">Open</span></td></tr>
+            <tr><td>Amount mismatch</td><td>4</td><td style="color:var(--yellow)">$980</td><td>Shopify</td><td><span class="bdg by">In review</span></td></tr>
+            <tr><td>Duplicate entry</td><td>1</td><td style="color:var(--yellow)">$420</td><td>Amazon</td><td><span class="bdg by">In review</span></td></tr>
+            <tr><td>Timing mismatch</td><td>5</td><td style="color:var(--green)">$1,850</td><td>Amazon</td><td><span class="bdg bg">Auto-resolved</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="insight">Most errors originate from Amazon settlement delays. These auto-resolve within 5 business days and do not require manual action unless unresolved after 7 days.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="abtn abtn-p">Resolve all low-severity</button>
+        <button class="abtn">Export error report</button>
+        <button class="abtn">Assign to category</button>
+      </div>
+    </div>
+
+    <!-- S6: RULES & SETTINGS -->
+    <div id="s6" class="screen">
+      <div class="sbar"><span class="stitle">Rules &amp; settings</span><button class="btn-run">+ Add rule</button></div>
+      <div class="card">
+        <div class="card-lbl">Matching rules</div>
+        <div class="rule-row">
+          <div><div class="rule-label">Amount tolerance match</div><div class="rule-cond">Match if amount difference ≤ 5% of expected value</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="rule-row">
+          <div><div class="rule-label">Date proximity window</div><div class="rule-cond">Accept match if transaction dates within 5 business days</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="rule-row">
+          <div><div class="rule-label">Group Shopify payouts</div><div class="rule-cond">Combine multiple orders into single payout if within 24hr window</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="rule-row">
+          <div><div class="rule-label">Ignore micro-fees</div><div class="rule-cond">Skip fee reconciliation for amounts under $5.00</div></div>
+          <div class="toggle off"></div>
+        </div>
+        <div class="rule-row">
+          <div><div class="rule-label">Auto-accept high-confidence matches</div><div class="rule-cond">Auto-approve suggestions with confidence score ≥ 90%</div></div>
+          <div class="toggle on"></div>
+        </div>
+        <div class="rule-row">
+          <div><div class="rule-label">Amazon settlement delay buffer</div><div class="rule-cond">Hold unmatched Amazon transactions for 7 days before flagging</div></div>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+      <div class="insight">These rules are configured specifically for this client's business model. Changing the tolerance threshold or date window will affect how many transactions require manual review — test changes in a staging period before applying to live data.</div>
+    </div>
+
+  </div><!-- end app-frame -->
+</section>
+
+<footer>
+  <p>// financial-manager · upwork portfolio · project-02</p>
+  <span class="ftag">Illustrative sample — data is fictional</span>
+</footer>
+
+<script>
+function showTab(id, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='s1' && !window.rc) buildRec();
+}
+function buildRec(){
+  window.rc = true;
+  new Chart(document.getElementById('rec-chart'),{
+    type:'bar',
+    data:{
+      labels:['Matched','Partial','Unmatched'],
+      datasets:[{
+        data:[142,5,8],
+        backgroundColor:['rgba(29,122,74,0.15)','rgba(184,112,0,0.15)','rgba(200,64,26,0.15)'],
+        borderColor:['#1d7a4a','#b87000','#c8401a'],
+        borderWidth:1.5,
+        borderRadius:4
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{color:'#7a8870',font:{size:11,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.05)'},border:{display:false}},
+        x:{ticks:{color:'#7a8870',font:{size:11,family:'IBM Plex Mono'}},grid:{display:false},border:{display:false}}
+      }
+    }
+  });
+}
+window.addEventListener('load',()=>{ buildRec(); });
+
+// toggle interaction
+document.querySelectorAll('.toggle').forEach(t=>{
+  t.addEventListener('click',()=>{
+    t.classList.toggle('on');
+    t.classList.toggle('off');
+  });
+});
+</script>
+</body>
+</html>
